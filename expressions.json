@@ -1,0 +1,37 @@
+{
+  "base_expression": "closed mouth",
+
+  "expressions": {
+    "neutral":     "closed mouth",
+    "smile":       "smile, closed mouth, happy",
+    "grin":        "grin, teeth, happy",
+    "laugh":       { "tags": "laughing, open mouth, closed eyes, ^_^, happy", "denoise": 0.62 },
+    "angry":       "angry, frown, v-shaped eyebrows, clenched teeth",
+    "rage":        { "tags": "furious, angry, shouting, open mouth, v-shaped eyebrows, veins", "denoise": 0.65 },
+    "sad":         "sad, frown, downturned eyes, closed mouth",
+    "cry":         { "tags": "crying, tears, sad, open mouth, frown", "denoise": 0.62 },
+    "surprised":   "surprised, open mouth, wide-eyed, raised eyebrows",
+    "embarrassed": "embarrassed, blush, wavy mouth, sweat",
+    "smug":        "smug, smirk, half-closed eyes",
+    "cold":        "expressionless, half-closed eyes, closed mouth",
+    "glare":       "glaring, serious, narrowed eyes, closed mouth",
+    "scared":      "scared, open mouth, sweat, worried, furrowed brow",
+    "determined":  "serious, determined, closed mouth, furrowed brow",
+    "pout":        "pout, puffed cheeks, annoyed",
+    "confused":    "confused, raised eyebrow, open mouth",
+    "worried":     "worried, furrowed brow, closed mouth, sweatdrop",
+    "shy":         "shy, light blush, looking away, closed mouth"
+  },
+
+  "personalities": {
+    "기본":   ["neutral", "smile", "angry", "sad", "surprised"],
+    "명랑":   ["neutral", "smile", "grin", "laugh", "surprised", "pout", "sad"],
+    "냉정":   ["neutral", "cold", "glare", "smug", "surprised", "angry"],
+    "다혈질": ["neutral", "grin", "angry", "rage", "determined", "surprised"],
+    "소심":   ["neutral", "shy", "worried", "scared", "embarrassed", "cry", "smile"],
+    "오만":   ["neutral", "smug", "glare", "angry", "laugh", "surprised"],
+    "진지":   ["neutral", "determined", "glare", "worried", "smile", "surprised"]
+  },
+
+  "default_personality": "기본"
+}

@@ -1,0 +1,10 @@
+pillow>=10
+ultralytics>=8.2
+huggingface_hub>=0.23
+# 파츠 목/깃 마스크 (ultralytics 가 이미 설치함)
+scipy
+# 배경 제거. CPU 로 충분합니다 (캐릭터당 1회, 약 3초). GPU 판은 ComfyUI 와 VRAM 을 나눠 쓰고 CUDA/cuDNN DLL 이 따로 필요합니다
+rembg[cpu]>=2.0.57
+# 웹 UI (python server.py)
+fastapi>=0.110
+uvicorn>=0.29

@@ -1,0 +1,92 @@
+{
+  "out_dir": "parts_out",
+  "prompt": "solo, looking at viewer, facing viewer, straight-on, head straight, closed mouth, simple background, white background, soft lighting, flat lighting",
+  "negative_extra": "head tilt, dutch angle, from side, profile, hand on own face, hands up, dramatic lighting, backlighting, shadow on face",
+  "align": {
+    "face_height": 0.3,
+    "face_top": 0.28,
+    "refine_denoise": 0.4
+  },
+  "seethrough": {
+    "layerdiff_model": "layerdifforg/seethroughv0.0.2_layerdiff3d",
+    "quant_mode": "nf4",
+    "depth_model": "layerdifforg/seethroughv0.0.1_marigold",
+    "resolution": 1280,
+    "steps": 30,
+    "depth_resolution": -1,
+    "tblr_split": true,
+    "use_lama": true
+  },
+  "sources": [
+    {
+      "id": "npc_0029",
+      "seed": 2933844123,
+      "from": "npc_0029",
+      "tags": "1girl, brown hair, medium hair, ponytail, wispy bangs, brown eyes, white shirt, beige cardigan, green apron, rolled up sleeves, upper body, freckles, name tag, florist",
+      "align": true
+    },
+    {
+      "id": "npc_0030",
+      "seed": 2600818857,
+      "from": "npc_0030",
+      "tags": "1boy, black hair, short hair, swept back hair, dark brown eyes, navy suit, white shirt, loosened necktie, upper body, rectangular glasses, office worker",
+      "align": true
+    },
+    {
+      "id": "npc_0031",
+      "seed": 3490129004,
+      "from": "npc_0031",
+      "tags": "1girl, black hair, short hair, bob cut, side swept bangs, black eyes, denim shirt, brown work apron, work gloves, upper body, muscular female, bandaid on cheek, carpenter",
+      "align": true
+    },
+    {
+      "id": "npc_0032",
+      "seed": 4143627408,
+      "from": "npc_0032",
+      "tags": "1boy, light brown hair, short hair, messy hair, hazel eyes, orange hoodie, black vest, backpack straps, upper body, headphones around neck, delivery uniform, delivery boy",
+      "align": true
+    },
+    {
+      "id": "npc_0033",
+      "seed": 3302481323,
+      "from": "npc_0033",
+      "tags": "1girl, dark brown hair, long hair, low bun, sidelocks, brown eyes, light blue scrubs, white coat, chest pocket, upper body, wristwatch, nurse",
+      "align": true
+    },
+    {
+      "id": "npc_0034",
+      "seed": 3119913298,
+      "from": "npc_0034",
+      "tags": "1boy, salt and pepper hair, short hair, crew cut, grey eyes, olive shirt, brown vest, towel around neck, upper body, tanned skin, stubble, weathered face, farmer",
+      "align": true
+    },
+    {
+      "id": "npc_0035",
+      "seed": 3314240364,
+      "from": "npc_0035",
+      "tags": "1girl, black hair, long hair, single braid, blunt bangs, dark brown eyes, cream sweater, brown pinafore dress, collared shirt, upper body, round glasses, book hug, librarian",
+      "align": true
+    },
+    {
+      "id": "npc_0036",
+      "seed": 3848903765,
+      "from": "npc_0036",
+      "tags": "1boy, black hair, short hair, slicked back hair, brown eyes, burgundy shirt, pinstripe vest, necktie, upper body, gold necklace, pocket square, salesman",
+      "align": true
+    },
+    {
+      "id": "npc_0037",
+      "seed": 416155753,
+      "from": "npc_0037",
+      "tags": "1girl, auburn hair, short hair, curly hair, brown eyes, floral shirt, red apron, rolled up sleeves, upper body, mole under eye, small hoop earrings, cook",
+      "align": true
+    },
+    {
+      "id": "npc_0038",
+      "seed": 501709473,
+      "from": "npc_0038",
+      "tags": "1boy, black hair, medium hair, low ponytail, parted bangs, dark brown eyes, grey work jacket, black shirt, utility belt, upper body, safety goggles on head, grease stain, mechanic",
+      "align": true
+    }
+  ]
+}

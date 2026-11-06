@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>게임 이미지 제작실</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23232634'/%3E%3Ccircle cx='16' cy='12' r='6' fill='%23a594ff'/%3E%3Cpath d='M6 29c1-7 5-10 10-10s9 3 10 10z' fill='%23a594ff'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">게임 이미지 제작실</div>
+  <nav class="tabs" role="tablist">
+    <button class="tab-btn" data-tab="characters" role="tab">캐릭터</button>
+    <button class="tab-btn" data-tab="queue" role="tab">생성 큐 <span class="tab-badge" id="queue-badge" hidden></span></button>
+    <button class="tab-btn" data-tab="gallery" role="tab">검수</button>
+    <button class="tab-btn" data-tab="parts" role="tab">파츠</button>
+    <button class="tab-btn" data-tab="settings" role="tab">설정</button>
+  </nav>
+  <div class="topstatus">
+    <span id="queue-mini" class="muted"></span>
+    <span id="comfy-pill" class="pill" title="ComfyUI 연결 상태"><i></i><span>ComfyUI 확인 중…</span></span>
+  </div>
+</header>
+<div id="image-types" class="image-types" role="group" aria-label="이미지 유형">
+  <button data-image-type="character"><b>주인공/조연</b><span>이미지 · 표정 · 레이어 분리 · 포즈 고정</span></button>
+  <button data-image-type="npc"><b>NPC</b><span>이미지 · 레이어 분리 · 포즈 고정</span></button>
+  <button data-image-type="monster"><b>몬스터</b><span>자유 설명으로 이미지 생성</span></button>
+</div>
+<p id="type-guide" class="type-guide"></p>
+<div id="server-banner" class="banner" hidden>웹 UI 서버와 연결이 끊겼습니다. 다시 연결하는 중…</div>
+<div id="config-banner" class="banner warn" hidden></div>
+
+<main>
+  <!-- 1. 캐릭터 -->
+  <section id="tab-characters" class="tab" hidden>
+    <div class="toolbar">
+      <input id="char-search" type="search" placeholder="id, 이름, 태그 검색" autocomplete="off">
+      <select id="char-status" title="상태 필터">
+        <option value="">모든 상태</option>
+        <option value="none">미생성</option>
+        <option value="base">후처리 대기</option>
+        <option value="done">완료</option>
+        <option value="approved">승인됨</option>
+      </select>
+      <span class="sep"></span>
+      <button id="btn-row-add" class="btn" title="새 캐릭터 추가">+ 추가</button>
+      <button id="btn-ai-add" class="btn" title="설명으로 캐릭터 설정을 생성해 표 초안에 추가">AI 자동 추가</button>
+      <button id="btn-row-dup" class="btn" title="선택한 행 복제 (seed 는 비움)">복제</button>
+      <button id="btn-row-del" class="btn danger" title="선택한 행 삭제 (결과물 폴더는 남음)">삭제</button>
+      <span class="sep"></span>
+      <button id="btn-csv-import" class="btn ghost" title="CSV 파일 불러오기 (UTF-8 / CP949)">가져오기</button>
+      <button id="btn-csv-export" class="btn ghost" title="저장된 표를 CSV 로 내려받기">내보내기</button>
+      <input id="csv-file" type="file" accept=".csv,text/csv" hidden>
+      <span class="spacer"></span>
+      <span id="char-selection" class="muted"></span>
+      <label class="check" title="체크하면 base 이미지부터 새로 만듭니다 (같은 seed)"><input type="checkbox" id="char-force"> 이미 만든 것도 다시 생성</label>
+      <button id="btn-gen-base" class="btn">이미지 생성</button>
+      <button id="btn-gen-expressions" class="btn">표정 생성</button>
+      <button id="btn-gen-layers" class="btn">레이어 분리</button>
+      <button id="btn-gen-full" class="btn primary">전체 생성</button>
+    </div>
+    <div id="char-savebar" class="savebar">
+      <span id="char-dirty" class="muted">변경 사항 없음</span>
+      <span class="spacer"></span>
+      <span class="muted small">칸을 누르면 편집 · <kbd>Enter</kbd> 확정 · <kbd>Tab</kbd> 다음 칸 · <kbd>Esc</kbd> 취소 · 상태 배지를 누르면 검수 화면</span>
+      <button id="btn-char-reload" class="btn ghost small" title="characters.csv 를 다시 읽음 (저장하지 않은 변경은 사라짐)">다시 불러오기</button>
+      <button id="btn-char-revert" class="btn ghost small" disabled>되돌리기</button>
+      <button id="btn-char-save" class="btn primary small" disabled>저장</button>
+    </div>
+    <div id="char-errors" class="errorbox" hidden></div>
+    <div class="table-wrap">
+      <table id="char-table" class="grid-table edit-table">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+      <div id="char-empty" class="empty" hidden></div>
+    </div>
+  </section>
+
+  <!-- 2. 생성 큐 -->
+  <section id="tab-queue" class="tab" hidden>
+    <div class="queue-layout">
+      <div class="queue-main">
+        <div class="panel progress-panel">
+          <div class="progress-head">
+            <span id="q-state" class="state-label"></span>
+            <span id="q-count" class="muted"></span>
+          </div>
+          <div class="progress"><div id="q-bar"></div></div>
+          <div class="stats">
+            <div><label>장당 평균</label><b id="q-avg">–</b></div>
+            <div><label>남은 예상 시간</label><b id="q-eta">–</b></div>
+            <div><label>대기</label><b id="q-n-pending">0</b></div>
+            <div><label>완료</label><b id="q-n-done">0</b></div>
+            <div><label>실패·취소</label><b id="q-n-failed">0</b></div>
+          </div>
+          <div class="actions">
+            <button id="btn-pause" class="btn">일시정지</button>
+            <button id="btn-resume" class="btn primary" hidden>재개</button>
+            <button id="btn-cancel" class="btn danger">모두 취소</button>
+            <button id="btn-clear" class="btn ghost">완료 목록 비우기</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>진행 중</h3>
+          <div id="q-running" class="running"></div>
+        </div>
+
+        <div class="job-columns">
+          <div class="panel">
+            <h3>대기 <span id="q-h-pending" class="count"></span></h3>
+            <ul id="q-pending" class="job-list"></ul>
+          </div>
+          <div class="panel">
+            <h3>완료 <span id="q-h-done" class="count"></span></h3>
+            <ul id="q-done" class="job-list"></ul>
+          </div>
+          <div class="panel">
+            <h3>실패·취소 <span id="q-h-failed" class="count"></span>
+              <button id="btn-retry-all" class="btn small ghost" hidden>모두 다시 시도</button></h3>
+            <ul id="q-failed" class="job-list"></ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="queue-side">
+        <div class="panel">
+          <h3>방금 생성된 이미지</h3>
+          <div id="recent-images" class="recent"><div class="empty small">아직 없습니다</div></div>
+        </div>
+        <div class="panel log-panel">
+          <h3>로그
+            <span class="spacer"></span>
+            <label class="check small"><input type="checkbox" id="log-autoscroll" checked> 자동 스크롤</label>
+            <button id="btn-log-clear" class="btn small ghost">지우기</button>
+          </h3>
+          <div id="log" class="log" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 검수 갤러리 -->
+  <section id="tab-gallery" class="tab" hidden>
+    <div class="toolbar">
+      <div id="gal-status" class="seg" role="group" aria-label="상태 필터"></div>
+      <select id="gal-personality" title="성격 필터"><option value="">모든 성격</option></select>
+      <input id="gal-search" type="search" placeholder="이름·id 검색" autocomplete="off">
+      <label class="check"><input id="gal-select-all" type="checkbox"> 현재 목록 전체 선택</label>
+      <span id="gal-selection" class="muted"></span>
+      <button id="btn-gallery-delete" class="btn danger" disabled>선택 항목 삭제</button>
+      <span class="spacer"></span>
+      <span id="gal-count" class="muted"></span>
+      <button id="btn-unity-export" class="btn" title="승인된 캐릭터만 Unity 프로젝트 폴더로 복사">Unity로 내보내기</button>
+      <label class="size-slider" title="카드 크기"><span>크기</span><input id="gal-size" type="range" min="110" max="300" step="10"></label>
+    </div>
+    <div id="gallery" class="gallery"></div>
+    <div id="gal-empty" class="empty" hidden></div>
+  </section>
+
+  <!-- 4. 파츠 조합 (소모성 NPC) -->
+  <section id="tab-parts" class="tab" hidden>
+    <p class="note">같은 구도로 소스 초상을 만들거나(① 소스 생성) 캐릭터용으로 만든 이미지를 가져와서(생성 이미지에서 가져오기), SeeThrough 로 머리·눈·얼굴·옷 레이어로 나눈 뒤(② 레이어 분리), 소스끼리 파츠를 섞어 봅니다.
+      레이어 분리는 ComfyUI 에 <code>ComfyUI-See-through</code> 커스텀 노드가 있어야 하고 장당 4~5분 걸립니다. 작업은 [생성 큐]에서 함께 처리합니다.</p>
+    <div class="toolbar">
+      <button id="btn-parts-add" class="btn" title="새 소스 추가 (seed 는 무작위)">+ 소스 추가</button>
+      <button id="btn-parts-import" class="btn" title="캐릭터 탭에서 만든 base 이미지를 소스로 가져옴">생성 이미지에서 가져오기</button>
+      <button id="btn-parts-del" class="btn danger" title="체크한 소스를 목록에서 삭제. [저장]하면 결과 폴더는 parts_out/.deleted 로 옮겨집니다 (지우지는 않음)">삭제</button>
+      <span class="spacer"></span>
+      <span id="parts-selection" class="muted"></span>
+      <label class="check" title="체크하면 결과가 있어도 다시 만듭니다. 소스를 다시 만들면 예전 레이어는 지워집니다"><input type="checkbox" id="parts-force"> 이미 만든 것도 다시</label>
+      <button id="btn-parts-gen" class="btn" title="태그로 소스 초상을 새로 그립니다. 생성 이미지에서 가져온 소스(← 캐릭터 id)는 그 캐릭터의 base 를 다시 가져옵니다">① 소스 생성</button>
+      <button id="btn-parts-split" class="btn primary">② 레이어 분리</button>
+    </div>
+    <div class="savebar">
+      <span id="parts-dirty" class="muted">변경 사항 없음</span>
+      <span class="spacer"></span>
+      <span class="muted small">태그를 바꾼 뒤에는 [이미 만든 것도 다시]로 소스부터 다시 만드세요</span>
+      <button id="btn-parts-revert" class="btn ghost small" disabled>되돌리기</button>
+      <button id="btn-parts-save" class="btn primary small" disabled>저장</button>
+    </div>
+    <div id="parts-errors" class="errorbox" hidden></div>
+    <div class="parts-layout">
+      <div class="table-wrap">
+        <table id="parts-table" class="grid-table parts-table">
+          <thead><tr>
+            <th class="col-check"><input type="checkbox" id="parts-all" title="전체 선택"></th>
+            <th></th><th>id</th><th>seed</th><th>태그</th><th>상태</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+        <div id="parts-empty" class="empty" hidden>소스가 없습니다. [+ 소스 추가]로 만드세요.</div>
+      </div>
+      <div class="parts-side">
+        <div class="panel">
+          <h3>소스 <span id="pv-id" class="pv-id"></span>
+            <span class="spacer"></span>
+            <span id="pv-view" class="seg small">
+              <button data-v="check">원본 | 재합성</button>
+              <button data-v="sheet">레이어</button>
+              <button data-v="source">원본</button>
+            </span>
+          </h3>
+          <div id="pv-body" class="pv-body"></div>
+          <div id="pv-psd" class="pv-psd" hidden>
+            <span class="muted">PSD 받기</span>
+            <button class="btn small" data-kind="rgba" title="레이어 PSD (원본은 숨긴 맨 아래 레이어)">레이어 PSD</button>
+            <button class="btn small" data-kind="depth" title="깊이 PSD (회색조, 밝을수록 멂)">깊이 PSD</button>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>조합 미리보기
+            <span class="spacer"></span>
+            <button id="btn-compose-random" class="btn small">무작위</button>
+            <button id="btn-compose-grid" class="btn small ghost">무작위 12개</button>
+          </h3>
+          <div id="compose-picks" class="compose-picks"></div>
+          <div id="compose-out" class="compose-out bg-check"></div>
+          <div id="compose-grid" class="compose-grid" hidden></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. 설정 -->
+  <section id="tab-settings" class="tab" hidden>
+    <div class="settings-bar">
+      <span id="settings-dirty" class="muted">변경 사항 없음</span>
+      <span class="spacer"></span>
+      <button id="btn-settings-revert" class="btn ghost" disabled>되돌리기</button>
+      <button id="btn-save-config" class="btn primary" disabled>생성 설정 저장</button>
+      <button id="btn-save-expr" class="btn primary" disabled>표정 설정 저장</button>
+    </div>
+    <div class="settings-layout">
+      <nav id="settings-nav" class="settings-nav"></nav>
+      <div class="settings-body">
+        <div id="settings-errors" class="errorbox" hidden></div>
+        <form id="config-form" autocomplete="off" onsubmit="return false"></form>
+        <div id="expr-editor"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- 상세 보기 -->
+<div id="detail" class="modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="detail" role="dialog" aria-modal="true" aria-labelledby="d-name">
+    <div id="stage-wrap" class="detail-stage-wrap">
+      <div id="scene" class="scene">
+        <div id="stage" class="stage bg-check">
+          <img id="stage-base" alt="">
+          <img id="stage-overlay" alt="" hidden>
+          <img id="stage-mask" class="debug-layer" alt="" hidden>
+          <svg id="stage-debug" class="debug-layer" hidden></svg>
+          <div id="stage-empty" class="stage-empty" hidden>이미지가 없습니다</div>
+        </div>
+        <div id="dlg-box" class="dlg-box" hidden>
+          <div id="dlg-name" class="dlg-name"></div>
+          <div id="dlg-text" class="dlg-text"></div>
+          <div id="dlg-next" class="dlg-next">▼</div>
+        </div>
+      </div>
+    </div>
+    <aside class="detail-side">
+      <div class="detail-head">
+        <h2 id="d-name"></h2>
+        <span id="d-status" class="badge"></span>
+        <span class="spacer"></span>
+        <button class="icon-btn" data-close title="닫기 (Esc)">✕</button>
+      </div>
+      <div id="d-sub" class="muted small"></div>
+
+      <div class="view-row">
+        <div id="d-view" class="seg small">
+          <button data-view="portrait">초상화</button>
+          <button data-view="dialogue">대화창 <kbd>T</kbd></button>
+        </div>
+        <label class="check small" title="합성 마스크, 얼굴 박스, 크롭 영역, 오버레이 위치 표시 (D)"><input type="checkbox" id="d-debug"> 디버그 <kbd>D</kbd></label>
+      </div>
+      <div id="d-debug-info" class="debug-info" hidden></div>
+
+      <div id="d-jobs" class="d-jobs" hidden></div>
+
+      <h4 id="d-exprs-title">표정 <span class="kbd-hint"><kbd>←</kbd><kbd>→</kbd></span></h4>
+      <div id="d-exprs" class="expr-buttons"></div>
+      <div id="d-expr-info" class="muted small"></div>
+      <div id="d-regen" class="action-box" hidden>
+        <div class="row">
+          <label class="small" for="d-denoise">denoise</label>
+          <input id="d-denoise-range" type="range" min="0.2" max="0.9" step="0.01">
+          <input id="d-denoise" type="number" min="0.01" max="1" step="0.01">
+        </div>
+        <div class="row">
+          <label class="check small" title="체크하지 않으면 base 와 같은 seed 로 다시 그립니다 (denoise 만 바꿀 때)"><input type="checkbox" id="d-newseed" checked> 새 seed</label>
+          <span class="spacer"></span>
+          <button id="d-btn-regen" class="btn small primary">이 표정 다시 만들기</button>
+        </div>
+        <div class="muted small hint">높이면 표정 변화가 커지고, 너무 높으면 얼굴형·눈 색이 바뀝니다.</div>
+      </div>
+
+      <h4>검수</h4>
+      <div id="d-stages" class="type-guide"></div>
+      <div id="d-actions" class="d-actions"></div>
+      <div id="d-layers" class="layer-review" hidden></div>
+
+      <div id="d-dialogue" class="dialogue-panel" hidden>
+        <h4>대사 <span class="kbd-hint muted">한 줄씩 · <kbd>Space</kbd>/클릭으로 넘김</span></h4>
+        <textarea id="dlg-script" rows="5" spellcheck="false"></textarea>
+        <div class="muted small hint">줄 앞에 <code>smile:</code> 처럼 표정 이름을 쓰면 그 줄에서 표정이 바뀝니다.</div>
+        <div class="row">
+          <div id="dlg-pos" class="seg small">
+            <button data-pos="left">왼쪽</button>
+            <button data-pos="center">가운데</button>
+            <button data-pos="right">오른쪽</button>
+          </div>
+          <span class="spacer"></span>
+          <button id="dlg-restart" class="btn small ghost">처음부터</button>
+        </div>
+      </div>
+
+      <h4>미리보기 배경</h4>
+      <div id="d-bg" class="seg small">
+        <button data-bg="check">체크무늬</button>
+        <button data-bg="dark">어둡게</button>
+        <button data-bg="light">밝게</button>
+        <button data-bg="scene">장면</button>
+      </div>
+
+      <h4>캐릭터 정보</h4>
+      <dl id="d-info" class="info-list"></dl>
+
+      <div class="detail-nav">
+        <button id="d-prev" class="btn small">↑ 이전</button>
+        <span id="d-pos" class="muted small"></span>
+        <button id="d-next" class="btn small">다음 ↓</button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div id="gallery-delete-dialog" class="modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="gallery-delete-title">
+    <h3 id="gallery-delete-title">선택 항목 영구 삭제</h3>
+    <p id="gallery-delete-summary"></p>
+    <p>캐릭터 데이터와 프로젝트에 저장된 원본·표정 이미지, 레이어 결과, 연결된 파츠 파일을 실제로 삭제합니다. 복구할 수 없습니다.</p>
+    <p class="muted small">이미 Unity로 내보낸 사본과 ComfyUI 내부 파일은 삭제하지 않습니다.</p>
+    <div id="gallery-delete-error" class="errorbox" role="alert" hidden></div>
+    <div class="dialog-actions">
+      <button id="gallery-delete-cancel" class="btn ghost" data-close>취소</button>
+      <button id="gallery-delete-confirm" class="btn danger">영구 삭제</button>
+    </div>
+  </div>
+</div>
+
+<div id="ai-dialog" class="modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <form id="ai-form" class="dialog" role="dialog" aria-modal="true" aria-labelledby="ai-title">
+    <h3 id="ai-title">AI 캐릭터 자동 추가</h3>
+    <label for="ai-description">캐릭터 설명</label>
+    <textarea id="ai-description" rows="5" maxlength="10000" required placeholder="예: 판타지 마을 주민. 직업과 외형을 다양하게 구성해 주세요."></textarea>
+    <label for="ai-count">인원수 (1~50명)</label>
+    <input id="ai-count" type="number" min="1" max="50" step="1" value="5" required>
+    <p class="muted small">Codex CLI의 로그인·모델 설정을 사용합니다. 생성 결과는 표 초안에 추가되며 [저장]해야 CSV에 기록됩니다. 이미지는 생성하지 않습니다.</p>
+    <p id="ai-status" class="muted small" role="status" aria-live="polite"></p>
+    <div id="ai-error" class="errorbox" role="alert" hidden></div>
+    <div class="dialog-actions">
+      <button type="button" class="btn ghost" data-close>닫기</button>
+      <button id="ai-run" type="submit" class="btn primary">생성 후 초안에 추가</button>
+    </div>
+  </form>
+</div>
+
+<div id="import-dialog" class="modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="imp-title">
+    <h3 id="imp-title">CSV 가져오기</h3>
+    <div id="imp-body"></div>
+    <div class="dialog-actions">
+      <button class="btn ghost" data-close>취소</button>
+      <button id="imp-replace" class="btn">전부 바꾸기</button>
+      <button id="imp-merge" class="btn primary">합치기</button>
+    </div>
+  </div>
+</div>
+
+<div id="parts-import-dialog" class="modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="dialog wide-dialog" role="dialog" aria-modal="true" aria-labelledby="pi-title">
+    <h3 id="pi-title">생성 이미지에서 파츠 소스 가져오기</h3>
+    <div class="pi-bar">
+      <input id="pi-q" type="search" placeholder="id·이름 검색" spellcheck="false">
+      <label class="check small"><input type="checkbox" id="pi-all"> 보이는 것 전체 선택</label>
+      <span class="spacer"></span>
+      <span id="pi-count" class="muted small"></span>
+    </div>
+    <div id="pi-list" class="pi-list"></div>
+    <label class="check small" title="gen 소스와 같은 위치·크기로 얼굴을 맞춰 잘라 키웁니다. 끄면 원래 그림 그대로 (그 소스는 다른 소스와 섞으면 위치가 어긋남)"><input type="checkbox" id="pi-align" checked> 얼굴 위치·크기를 다른 소스와 맞추기 (파츠를 섞으려면 필요)</label>
+    <label class="check small"><input type="checkbox" id="pi-split"> 가져온 뒤 바로 레이어 분리 (장당 약 4~5분)</label>
+    <p class="muted small">base 를 생성한 캐릭터만 보입니다. 소스 id 는 캐릭터 id 를 씁니다. 이미 가져온 캐릭터를 다시 가져오면 base 를 새로 가져오고 예전 레이어는 지웁니다.</p>
+    <div class="dialog-actions">
+      <button class="btn ghost" data-close>취소</button>
+      <button id="pi-run" class="btn primary">가져오기</button>
+    </div>
+  </div>
+</div>
+
+<div id="export-dialog" class="modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="exp-title">
+    <h3 id="exp-title">승인된 캐릭터를 Unity로 내보내기</h3>
+    <label class="small muted" for="exp-dest">내보낼 폴더 (Unity 프로젝트의 Assets/Resources/Portraits)</label>
+    <input id="exp-dest" type="text" class="wide" placeholder="D:\MyGame\Assets\Resources\Portraits" spellcheck="false">
+    <div id="exp-warn" class="warnline small" hidden></div>
+    <p id="exp-info" class="small"></p>
+    <ul class="small muted exp-notes">
+      <li>캐릭터마다 <code>base.png</code>, <code>expr/*.png</code>, <code>meta.json</code> 만 복사합니다.</li>
+      <li>바뀌지 않은 파일은 건너뛰고, 파일은 덮어써서 Unity 의 .meta(GUID)를 유지합니다.</li>
+    </ul>
+    <label class="check small"><input type="checkbox" id="exp-prune"> 승인이 풀렸거나 없어진 캐릭터는 대상 폴더에서 지우기</label>
+    <div id="exp-progress" class="exp-progress" hidden>
+      <div class="progress"><div id="exp-bar"></div></div>
+      <div id="exp-status" class="small muted"></div>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn ghost" data-close>닫기</button>
+      <button id="exp-run" class="btn primary">내보내기</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>
